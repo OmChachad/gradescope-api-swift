@@ -1,110 +1,75 @@
-# Gradescope API
+# GradescopeAPI Swift
 
-[![PyPI - Version](https://img.shields.io/pypi/v/gradescopeapi)](https://pypi.org/project/gradescopeapi/) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/gradescopeapi) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/nyuoss/gradescope-api/.github%2Fworkflows%2Fmain.yaml)
+Native Swift package based on the original Python `gradescopeapi` project in this repository.
 
-## Description
+## Credits
 
-This *unofficial* project serves as a library for programmatically interacting with [Gradescope](https://www.gradescope.com/). The primary purpose of this project is to provide students and instructors tools for interacting with Gradescope without having to use the web interface.
+I based this Swift package on the original Python Gradescope API project at [nyuoss/gradescope-api](https://github.com/nyuoss/gradescope-api). That repository was the original source for the feature set, scraping flow, and overall package shape that this Swift port follows.
 
-For example:
+I used Codex to do much of the Swift translation and implementation work, but I also worked through the back-and-forth debugging myself and pushed toward the fix that ended up mattering most in practice: running authentication and authenticated fetching through WebKit instead of relying on `URLSession` alone.
 
-- Students using this project could automatically query information about their courses and assignments to notify them of upcoming deadlines or new assignments.
-- Instructors could use this project bulk edit assignment due dates or sync student extensions with an external system.
+## Install
 
-## Features
+From Xcode or SwiftPM, point the dependency at this local `swift` folder and import:
 
-Implemented Features Include:
+```swift
+import GradescopeAPI
+```
 
-- Get all courses for a user
-- Get a list of all assignments for a course
-- Get all extensions for an assignment in a course
-- Add/remove/modify extensions for an assignment in a course
-- Add/remove/modify dates for an assignment in a course
-- Upload submissions to assignments
-- API server to interact with library without Python
+## Quick Start
 
-## Demo
+On Apple platforms, `login(...)` now uses the WebKit-backed flow by default.
 
-To get a feel for how the API works, we have provided a demo video of the features in-use: [link](https://youtu.be/eK9m4nVjU1A?si=6GTevv23Vym0Mu8V)
+```swift
+import Foundation
+import GradescopeAPI
 
-Note that we only demo interacting with the API server, you can alternatively use the Python library directly.
+let connection = GSConnection()
+try await connection.login("email@domain.com", "password")
 
-## Setup
+if let account = connection.account {
+    let courses = try await account.getCourses()
+    let assignments = try await account.getAssignments("753413")
+    print(courses.student)
+    print(assignments)
+}
+```
 
-To use the project you can install the package from PyPI using pip:
+You can also call the WebKit entry point explicitly:
+
+```swift
+try await connection.loginWithWebKit("email@domain.com", "password")
+```
+
+## Included Features
+
+- Login and authenticated session management via `GSConnection`
+- WebKit-backed authenticated fetching on Apple platforms
+- Course lookup via `Account.getCourses()`
+- Course roster lookup via `Account.getCourseUsers(_:)`
+- Assignment lookup via `Account.getAssignments(_:)`
+- Submission lookup via `Account.getAssignmentSubmissions(courseID:assignmentID:)`
+- Single-student submission lookup via `Account.getAssignmentSubmission(studentEmail:courseID:assignmentID:)`
+- Grader lookup via `Account.getAssignmentGraders(courseID:questionID:)`
+- Assignment extension fetch/update
+- Assignment date/title/autograder updates
+- Assignment file upload support
+
+## Notes
+
+- This package mirrors the Python package's HTML-scraping approach, so it still depends on Gradescope's live markup and page behavior remaining compatible.
+- The working Apple-platform implementation uses WebKit for login and authenticated page requests because Gradescope's live behavior did not consistently cooperate with a plain `URLSession` flow.
+- `updateAssignmentDate` accepts a `timeZone` argument because Gradescope's edit forms expect institution-local wall-clock times.
+- A local smoke-check target is included and can be run with:
 
 ```bash
-pip install gradescopeapi
+swift run GradescopeAPISmokeCheck
 ```
 
-For additional methods of installation, refer to the [install guide](docs/INSTALL.md)
+- A live WebKit verification target is also included for local debugging:
 
-## Usage
-
-The project is designed to be simple and easy to use. As such, we have provided users with two different options for using this project.
-
-### Option 1: FastAPI
-
-If you do not want to use Python, you can host the API using the integrated FastAPI server. This way, you can interact with Gradescope using different languages by sending HTTP requests to the API server.
-
-**Running the API Server Locally**
-
-To run the API server locally on your machine, open the project repository on your machine that you have cloned/forked, and:
-
-1. Navigate to the `src.gradescopeapi.api` directory
-1. Run the command: `uvicorn api:app --reload` to run the server locally
-1. In a web browser, navigate to `localhost:8000/docs`, to see the auto-generated FastAPI docs
-
-### Option 2: Python
-
-Alternatively, you can use Python to use the library directly. We have provided some sample scripts of common tasks one might do:
-
-```python
-from gradescopeapi.classes.connection import GSConnection
-
-# create connection and login
-connection = GSConnection()
-connection.login("email@domain.com", "password")
-
-"""
-Fetching all courses for user
-"""
-courses = connection.account.get_courses()
-for course in courses["instructor"]:
-    print(course)
-for course in courses["student"]:
-    print(course)
-
-"""
-Getting roster for a course
-"""
-course_id = "123456"
-members = connection.account.get_course_users(course_id)
-for member in members:
-    print(member)
-
-"""
-Getting all assignments for course
-"""
-assignments = connection.account.get_assignments(course_id)
-for assignment in assignments:
-    print(assignment)
+```bash
+GRADESCOPE_EMAIL="email@domain.com" \
+GRADESCOPE_PASSWORD="password" \
+swift run GradescopeAPIWebKitCheck
 ```
-
-For more examples of features not covered here such as changing extensions, uploading files, etc., please refer to the [tests](tests/) directory.
-
-## Testing
-
-For information on how to run your own tests using `gradescopeapi`, refer to [TESTING.md](docs/TESTING.md)
-
-## Contributing Guidelines
-
-Please refer to the [CONTRIBUTING.md](docs/CONTRIBUTING.md) file for more information on how to contribute to the project.
-
-## Authors
-
-- Susmitha Kusuma
-- Berry Liu
-- Margaret Jagger
-- Calvin Tian
-- Kevin Zheng
